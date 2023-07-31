@@ -173,11 +173,6 @@ class VideoEncoderThread(QThread):
                 else:
                     self.encoding_completed.emit(i)  # Emit the signal with the row index
 
-                # Ensure the elapsed timer has started for the current item
-                if self.encodings_started[i]:
-                    self.fps_updated.emit(i, -1)  # Emit a signal with -1 to stop displaying FPS
-
-
     def shutdown(self):
         self._is_canceled = True
         # Terminate all subprocesses
