@@ -173,6 +173,7 @@ class VideoEncoderThread(QThread):
                 else:
                     self.encoding_completed.emit(i)  # Emit the signal with the row index
 
+
     def shutdown(self):
         self._is_canceled = True
         # Terminate all subprocesses
@@ -270,6 +271,8 @@ class VideoEncoder(QMainWindow):
         self.input_folder = self.settings.value("input_folder", "")
         self.output_folder = self.settings.value("output_folder", "")
 
+        #self.settings.clear()
+
         main_widget = QWidget(self)
         self.setCentralWidget(main_widget)
         
@@ -319,7 +322,7 @@ class VideoEncoder(QMainWindow):
 
         self.table_widget = QTableWidget(self.tab1)
         self.table_widget.setColumnCount(5)  # Add one more column for "Encoding/Done"
-        self.table_widget.setHorizontalHeaderLabels(["Input File", "Elapsed Time", "FPS", "Time Remaining", "Encoding/Done"])
+        self.table_widget.setHorizontalHeaderLabels(["Input File", "Elapsed Time", "FPS", "Time to Complete", "Encoding/Done"])
 
         output_group = QGroupBox("Output", self.tab1)
         form_layout = QFormLayout(output_group)
@@ -423,7 +426,7 @@ class VideoEncoder(QMainWindow):
             - GUI Interface for easy interaction
             - Hardware Acceleration for faster encoding (Cuvid, Cuda, AMF, QSV)
             - Concurrent Video Encoding for improved efficiency
-            - Live Encoding Progress display with elapsed time, FPS, and time remaining
+            - Live Encoding Progress display with elapsed time, FPS, and  Time to Complete
             - Customizable encoding settings (bitrate, preset)
 
             ffmpeg commands are:
@@ -566,13 +569,13 @@ class VideoEncoder(QMainWindow):
 
         item.setText(str(int(fps)))  # Convert FPS to integer and update the table widget
 
-        # Calculate time remaining
+        # Calculate time time_to_complete
         total_frames = self.get_total_frames(row)
         if total_frames and fps != 0:  # Make sure fps is not zero before performing the division
             elapsed_time = self.table_widget.item(row, 1).data(QtCore.Qt.UserRole)
             if elapsed_time:
                 elapsed_time = int(elapsed_time)
-                time_remaining = (total_frames - self.frame_count) / fps
+                time_to_complete = (total_frames - self.frame_count) / fps
 
                 # Make sure the item exists before setting the text
                 item = self.table_widget.item(row, 3)
@@ -580,9 +583,9 @@ class VideoEncoder(QMainWindow):
                     item = QTableWidgetItem()
                     self.table_widget.setItem(row, 3, item)
 
-                # Convert time_remaining to int before formatting the string
-                time_remaining_int = int(time_remaining)
-                item.setText(f"{time_remaining_int // 3600:02d}:{(time_remaining_int % 3600) // 60:02d}:{time_remaining_int % 60:02d}")
+                # Convert time_to_complete to int before formatting the string
+                time_to_complete_int = int(time_to_complete)
+                item.setText(f"{time_to_complete_int // 3600:02d}:{(time_to_complete_int % 3600) // 60:02d}:{time_to_complete_int % 60:02d}")
 
     def get_total_frames(self, row):
         # Get the total number of frames in the video using FFprobe
