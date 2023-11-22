@@ -8,7 +8,7 @@ from PyQt5 import QtCore
 from PyQt5.QtCore import QThread
 from PyQt5.QtCore import QSettings
 from PyQt5.QtWidgets import QApplication, QMainWindow, QFileDialog, QLabel, QTableWidget, QPushButton, QComboBox, QTableWidgetItem, QLabel, \
-    QWidget, QGridLayout, QHBoxLayout, QVBoxLayout, QFormLayout, QLineEdit, QTabWidget,QSizePolicy,QPlainTextEdit,QGroupBox,QAction,QMessageBox
+    QWidget, QGridLayout, QHBoxLayout, QVBoxLayout, QFormLayout, QLineEdit, QTabWidget,QSizePolicy,QPlainTextEdit,QGroupBox,QAction,QMessageBox,QMenu
 
 
 bitrate_num = "1M", "2M", "3M","4M", "5M","6M", "10M", "12M", "14M","20M", "30M", "40M", "50M"
@@ -61,13 +61,13 @@ class VideoEncoderThread(QThread):
                 output_file = os.path.join(self.output_folder, os.path.basename(input_file))
 
                 # Get the selected hardware acceleration option based on the index
-                hwaccel_options = ["Nvidia_Cuda", "Nvidia_Cuvid"]
+                hwaccel_options = ["Nvidia_Cuda_h264","Nvidia_Cuvid_h264","Nvidia_Cuda_265", "Nvidia_Cuvid_265"]
                 if 0 <= self.hwaccel_index < len(hwaccel_options):
                     hwaccel = hwaccel_options[self.hwaccel_index]
                 else:
                     hwaccel = "auto"
 
-                if hwaccel  == "Nvidia_Cuvid":
+                if hwaccel  == "Nvidia_Cuvid_265":
                     command = [
                         "ffmpeg",
                         "-y",
@@ -79,13 +79,40 @@ class VideoEncoderThread(QThread):
                         "-c:a", "copy",
                         output_file,
                     ]
-                if hwaccel == "Nvidia_Cuda":
+
+                if hwaccel  == "Nvidia_Cuvid_h264":
+                    command = [
+                        "ffmpeg",
+                        "-y",
+                        "-hwaccel", "cuvid",
+                        "-i", input_file,
+                        "-c:v", "h264_nvenc",
+                        "-preset", self.preset,
+                        "-b:v", self.bitrate,
+                        "-c:a", "copy",
+                        output_file,
+                    ]
+
+
+                if hwaccel == "Nvidia_Cuda_265":
                     command = [
                         "ffmpeg",
                         "-y",
                         "-hwaccel", "cuda",
                         "-i", input_file,
                         "-c:v", "hevc_nvenc",
+                        "-preset", self.preset,
+                        "-b:v", self.bitrate,
+                        "-c:a", "copy",
+                        output_file,
+                    ]
+                if hwaccel == "Nvidia_Cuda_h264":
+                    command = [
+                        "ffmpeg",
+                        "-y",
+                        "-hwaccel", "cuda",
+                        "-i", input_file,
+                        "-c:v", "h264_nvenc",
                         "-preset", self.preset,
                         "-b:v", self.bitrate,
                         "-c:a", "copy",
@@ -100,8 +127,11 @@ class VideoEncoderThread(QThread):
 
                 if self._is_canceled:
                     self.encoding_canceled.emit()
+                    self.encoding_complete.emit()
+
                 else:
                     self.encoding_completed.emit(i)  # Emit the signal with the row index
+                    self.encoding_complete.emit()
                     self.encoding_progress_updated.emit(i, "Done")
 
     def shutdown(self):
@@ -205,6 +235,68 @@ class VideoEncoder(QMainWindow):
 
         self.init_ui()
 
+    def contextMenuEvent(self, event):
+        # Ensure the event is within the bounds of the QTableWidget
+        if not self.table_widget.underMouse():
+            return
+
+        contextMenu = QMenu(self)
+        
+        # Map the event position to the viewport of the table widget
+        tablePos = self.table_widget.viewport().mapFromGlobal(event.globalPos())
+        row = self.table_widget.rowAt(tablePos.y())
+
+        # Add 'Delete Row' action if the click is on a valid row
+        deleteAction = None
+        if row >= 0:
+            # Optionally select the row that was right-clicked
+            self.table_widget.selectRow(row)
+
+            deleteAction = contextMenu.addAction("Remove Selected")
+
+        # Add 'Remove All' action
+        removeAllAction = contextMenu.addAction("Remove All")
+
+        action = contextMenu.exec_(event.globalPos())
+
+        if action == deleteAction and deleteAction is not None:
+            self.delete_row(row)
+        elif action == removeAllAction:
+            self.remove_all_rows()
+
+    def delete_row(self, row):
+        # Confirm before deleting
+        reply = QMessageBox.question(self, 'Remove Selected', 'Are you sure you want to delete this row?', QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
+        if reply == QMessageBox.Yes:
+            self.table_widget.removeRow(row)
+
+    def reset_ui(self):
+        # Clear the table
+        #self.table_widget.setRowCount(0)
+
+        # Reset other UI components as needed
+        # For example, reset input and output fields, disable the cancel button, etc.
+        # self.input_textbox.setText('')
+        # self.output_textbox.setText('')
+        
+        self.input_button.setEnabled(True)
+        self.output_button.setEnabled(True)
+        self.output_textbox.setEnabled(True)
+        self.preset_combobox.setEnabled(True)
+        self.bitrate_combobox.setEnabled(True)
+        self.hwaccel_combobox.setEnabled(True)
+        self.Simultaneous_Encodes_combobox.setEnabled(True)
+        self.encode_button.setEnabled(True)
+        self.cancel_button.setEnabled(False)
+        # Add any additional reset logic here
+
+
+    def remove_all_rows(self):
+        # Confirm before removing all rows
+        reply = QMessageBox.question(self, 'Remove All Rows', 'Are you sure you want to remove all rows?', QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
+        if reply == QMessageBox.Yes:
+            self.table_widget.setRowCount(0)
+
     def init_ui(self):
 
         self.input_folder = ''
@@ -245,7 +337,7 @@ class VideoEncoder(QMainWindow):
         self.input_button = QPushButton("Select Files", self.tab1)
         form_layout.addRow("Files:", self.input_button)
         self.table_widget = QTableWidget(self.tab1)
-        self.table_widget.setColumnCount(5)  
+        self.table_widget.setColumnCount(6)  
         self.table_widget.setHorizontalHeaderLabels(["Input File", "Elapsed Time", "FPS", "Time Remaining", "Status"])
         output_group = QGroupBox("Output", self.tab1)
         form_layout = QFormLayout(output_group)
@@ -259,7 +351,7 @@ class VideoEncoder(QMainWindow):
         self.bitrate_combobox = QComboBox(self.tab1)
         self.preset_combobox = QComboBox(self.tab1)
         self.hwaccel_combobox = QComboBox(self.tab1)
-        self.hwaccel_combobox.addItems(["Nvidia_Cuda", "Nvidia_Cuvid"])
+        self.hwaccel_combobox.addItems(["Nvidia_Cuda_h264", "Nvidia_Cuvid_h264","Nvidia_cuda_265","Nvidia_Cuvid_265"])
         grid_layout.addWidget(QLabel("Simultaneous Encodes:"), 0, 0)
         grid_layout.addWidget(self.Simultaneous_Encodes_combobox, 0, 1)
         grid_layout.addWidget(QLabel("Bitrate:"), 0, 2)
@@ -316,6 +408,7 @@ class VideoEncoder(QMainWindow):
         size_policy = QSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         self.line_edit_tab2.setSizePolicy(size_policy)
         layout.addWidget(self.line_edit_tab2)
+
 
     @QtCore.pyqtSlot(str)
     def update_console_output(self, line):
@@ -375,6 +468,7 @@ class VideoEncoder(QMainWindow):
         self.output_textbox.setEnabled(False)
         self.preset_combobox.setEnabled(False)
         self.bitrate_combobox.setEnabled(False)      
+        self.hwaccel_combobox.setEnabled(False)
         self.cancel_button.setEnabled(True)
         self.Simultaneous_Encodes_combobox.setEnabled(False)
         self.encode_button.setEnabled(False)
@@ -463,7 +557,7 @@ class VideoEncoder(QMainWindow):
             return int(duration * fps)
         return None
 
-    def cancel_encoding_thread(self):
+    def cancel_encoding_thread(self,row):
         if hasattr(self, "encoding_thread") and self.encoding_thread.isRunning():
             self.encoding_thread.cancel_encoding()
             self.encoding_thread.terminate()  # Terminate the thread immediately without waiting
@@ -476,19 +570,27 @@ class VideoEncoder(QMainWindow):
             self.Simultaneous_Encodes_combobox.setEnabled(True)
             self.encode_button.setEnabled(True)
             self.cancel_button.setEnabled(False)
+            self.reset_ui()
             #self.status_label.setText("Encoding canceled")
+            for row in range(self.table_widget.rowCount()):
+                self.table_widget.setItem(row, 1, QTableWidgetItem("--:--:--"))  # Reset elapsed time (assuming it's column 1)
+                self.table_widget.setItem(row, 3, QTableWidgetItem("--:--:--"))  # Reset time remaining (assuming it's column 3)
 
     @QtCore.pyqtSlot(int)
     def encoding_completed_handler(self, row):
         # Update column 5 for the corresponding row to "Done" when an encoding is completed
         self.table_widget.setItem(row, 4, QTableWidgetItem("Done"))
         self.encoding_thread.finished_encoding[row] = True
+        
+
 
     @QtCore.pyqtSlot()
     def encoding_canceled_handler(self):
         self.cancel_button.setEnabled(False)
         self.encode_button.setEnabled(True)
+
         #self.status_label.setText("Encoding canceled")
+        self.reset_ui()
 
     def encoding_complete(self):
         self.elapsed_timer.stop()
@@ -501,6 +603,8 @@ class VideoEncoder(QMainWindow):
         self.Simultaneous_Encodes_combobox.setEnabled(True)
         self.encode_button.setEnabled(True)
         self.cancel_button.setEnabled(False)
+        self.reset_ui()
+        
         
         # Cleanup the encoding thread
         if hasattr(self, "encoding_thread") and self.encoding_thread.isRunning():
