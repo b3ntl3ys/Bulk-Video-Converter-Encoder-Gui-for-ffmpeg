@@ -3,6 +3,7 @@ import os
 import re
 import time
 import subprocess
+from subprocess import STARTUPINFO, STARTF_USESHOWWINDOW
 from datetime import datetime
 from PyQt5 import QtCore
 from PyQt5.QtCore import QThread
@@ -19,11 +20,14 @@ def get_video_duration(video_file):
     """Get the duration of a video using FFprobe."""
     command = ["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "default=noprint_wrappers=1:nokey=1", video_file]
     try:
-        output = subprocess.check_output(command, universal_newlines=True)
+        startupinfo = subprocess.STARTUPINFO()
+        startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
+        output = subprocess.check_output(command, universal_newlines=True, startupinfo=startupinfo)
         return float(output.strip())
     except subprocess.CalledProcessError as e:
         print(f"Error getting video duration for {video_file}: {e}")
         return None
+
     
 from concurrent.futures import ThreadPoolExecutor
 
@@ -147,7 +151,15 @@ class VideoEncoderThread(QThread):
 
     def execute_ffmpeg(self, command, row_index):
         # Process the FFmpeg command and capture the output
-        process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, bufsize=1, universal_newlines=True)
+        startupinfo = STARTUPINFO()
+        startupinfo.dwFlags |= STARTF_USESHOWWINDOW
+        process = subprocess.Popen(command, 
+                                stdout=subprocess.PIPE, 
+                                stderr=subprocess.STDOUT, 
+                                bufsize=1, 
+                                universal_newlines=True, 
+                                startupinfo=startupinfo)
+
 
         self.processes.append(process)
         self.start_times[row_index] = datetime.now()
