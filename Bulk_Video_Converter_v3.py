@@ -189,7 +189,7 @@ class VideoEncoderThread(QThread):
                     if self.bitrate_mode_combobox.currentText() == "CBR":
                         command += ["-b:v", self.bitrate]
                     elif self.bitrate_mode_combobox.currentText() == "VBR":
-                        command += ["-minrate", self.min_bitrate_combobox.currentText(), "-maxrate", self.max_bitrate_combobox.currentText(), "-bufsize", "50M"]
+                        command += ["-b:v",self.min_bitrate_combobox.currentText(),"-minrate", self.min_bitrate_combobox.currentText(), "-maxrate", self.max_bitrate_combobox.currentText(), "-bufsize", "50M"]
                     
                     command += ["-c:a", "copy", output_file]
 
@@ -206,7 +206,7 @@ class VideoEncoderThread(QThread):
                     if self.bitrate_mode_combobox.currentText() == "CBR":
                         command += ["-b:v", self.bitrate]
                     elif self.bitrate_mode_combobox.currentText() == "VBR":
-                        command += ["-minrate", self.min_bitrate_combobox.currentText(), "-maxrate", self.max_bitrate_combobox.currentText(), "-bufsize", "50M"]
+                        command += ["-b:v",self.min_bitrate_combobox.currentText(),"-minrate", self.min_bitrate_combobox.currentText(), "-maxrate", self.max_bitrate_combobox.currentText(), "-bufsize", "50M"]
       
                     
                     command += ["-c:a", "copy", output_file]
@@ -223,7 +223,7 @@ class VideoEncoderThread(QThread):
                     if self.bitrate_mode_combobox.currentText() == "CBR":
                         command += ["-b:v", self.bitrate]
                     elif self.bitrate_mode_combobox.currentText() == "VBR":
-                        command += ["-minrate", self.min_bitrate_combobox.currentText(), "-maxrate", self.max_bitrate_combobox.currentText(), "-bufsize", "50M"]
+                        command += ["-b:v",self.min_bitrate_combobox.currentText(),"-minrate", self.min_bitrate_combobox.currentText(), "-maxrate", self.max_bitrate_combobox.currentText(), "-bufsize", "50M"]
                    
                     
                     command += ["-c:a", "copy", output_file]
@@ -240,11 +240,10 @@ class VideoEncoderThread(QThread):
                     if self.bitrate_mode_combobox.currentText() == "CBR":
                         command += ["-b:v", self.bitrate]
                     elif self.bitrate_mode_combobox.currentText() == "VBR":
-                        command += ["-minrate", self.min_bitrate_combobox.currentText(), "-maxrate", self.max_bitrate_combobox.currentText(), "-bufsize", "50M"]
+                        command += ["-b:v",self.min_bitrate_combobox.currentText(),"-minrate", self.min_bitrate_combobox.currentText(), "-maxrate", self.max_bitrate_combobox.currentText(), "-bufsize", "50M"]
                     
                     command += ["-c:a", "copy", output_file]
 
-                print(command)
 
                 future = executor.submit(self.execute_ffmpeg, command, i)
                 futures.append(future)
@@ -276,7 +275,7 @@ class VideoEncoderThread(QThread):
         startupinfo = STARTUPINFO()
         startupinfo.dwFlags |= STARTF_USESHOWWINDOW
         process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, bufsize=1, universal_newlines=True, startupinfo=startupinfo)
-
+        
         self.processes.append(process)
         self.start_times[row_index] = datetime.now()
 
