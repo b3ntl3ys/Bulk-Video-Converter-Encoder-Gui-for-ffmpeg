@@ -11,6 +11,129 @@ from PyQt5.QtCore import QSettings
 from PyQt5.QtWidgets import QApplication, QMainWindow, QFileDialog, QLabel, QTableWidget, QPushButton, QComboBox, QTableWidgetItem, QLabel, \
     QWidget, QGridLayout, QHBoxLayout, QVBoxLayout, QFormLayout, QLineEdit, QTabWidget,QSizePolicy,QPlainTextEdit,QGroupBox,QAction,QMessageBox,QMenu
 
+LIGHT_STYLE = ("""
+    QMainWindow {
+        background-color: #f0f0f0;
+    }
+    QTabWidget::pane {
+        border: none;
+    }
+    QTabBar {
+        background-color: #333;
+        color: white;
+        height: 30px;
+    }
+    QTabBar::tab:selected {
+        background-color: #555;
+    }
+    QTabBar::tab:!selected {
+        background-color: #444;
+    }
+    QPushButton {
+        border-radius: 15px; /* Rounded corners */
+        background-color: #007BFF;
+        color: white;
+        border: none;
+        padding: 8px 15px;
+    }
+    QPushButton:hover {
+        background-color: #0056b3;
+    }
+    QLineEdit, QComboBox, QTableWidget, QPlainTextEdit {
+        background-color: white;
+        border: 1px solid #ccc;
+        padding: 5px;
+    }
+    QMessageBox {
+        background-color: #f0f0f0; /* Light background */
+        color: #000000; /* Black text */
+    }
+    QMessageBox QPushButton {
+        background-color: #e0e0e0;
+        color: black;
+        border: 1px solid #cccccc;
+    }
+    QComboBox {
+    border-radius: 10px; /* Rounded corners */
+    }
+
+    QComboBox::drop-down {
+        border-radius: 10px; /* Rounded corners for the drop-down button */
+    }
+
+    QComboBox QAbstractItemView {
+        border-radius: 10px; /* Rounded corners for the list */
+    }
+""")
+
+DARK_STYLE = ("""
+    QMainWindow {
+        background-color: #212121; /* Darker shade for main window */
+    }
+    QTabWidget::pane {
+        border: none;
+    }
+    QTabBar {
+        background-color: #121212; /* Very dark shade for tabs */
+        color: #ffffff;
+    }
+    QTabBar::tab:selected {
+        background-color: #424242; /* Slightly lighter for selected tab */
+    }
+    QTabBar::tab:!selected {
+        background-color: #1c1c1c; /* Dark shade for unselected tabs */
+    }
+    QPushButton {
+        border-radius: 15px; /* Rounded corners */
+        background-color: #0056b3; /* Darker blue for buttons */
+        color: white;
+        border: none;
+        padding: 8px 15px;
+    }
+    QPushButton:hover {
+        background-color: #474747; /* Lighter grey on hover */
+    }
+   QLineEdit, QComboBox, QPlainTextEdit {
+        background-color: #1e1e1e; /* Dark background for inputs */
+        color: #ffffff; /* Explicitly set text color to white */
+        border: 1px solid #333333; /* Dark border for inputs */
+    }
+
+    QComboBox {
+    border-radius: 10px; /* Rounded corners */
+    padding: 6px 12px; /* Padding */
+    }
+
+    QComboBox::drop-down {
+        border-radius: 10px; /* Rounded corners for the drop-down button */
+    }
+
+    QComboBox QAbstractItemView {
+        border-radius: 10px; /* Rounded corners for the list */
+        background: white; /* Background color for the list */
+    }
+    QTableWidget {
+        background-color: #1e1e1e; /* Dark background for table */
+        color: #ffffff; /* Text color for table */
+    }
+
+    QTableWidget QHeaderView::section {
+        background-color: #333333; /* Dark background for header */
+        color: #ffffff; /* Text color for header */
+    }
+    QLabel ,QGroupBox{
+        color: #ffffff; /* Set text color to white for QLabel */
+    }
+    QMessageBox {
+        background-color: #212121; /* Dark background */
+        color: #ffffff; /* White text */
+    }
+    QMessageBox QPushButton {
+        background-color: #333333;
+        color: white;
+        border: 1px solid #444444;
+    }
+""")
 
 bitrate_num = "1M", "2M", "3M","4M", "5M","6M", "10M", "12M", "14M","20M", "30M", "40M", "50M"
 sel_preset = "slow", "medium", "fast"
@@ -27,7 +150,6 @@ def get_video_duration(video_file):
     except subprocess.CalledProcessError as e:
         print(f"Error getting video duration for {video_file}: {e}")
         return None
-
     
 from concurrent.futures import ThreadPoolExecutor
 
@@ -83,7 +205,6 @@ class VideoEncoderThread(QThread):
                         "-c:a", "copy",
                         output_file,
                     ]
-
                 if hwaccel  == "Nvidia_Cuvid_h264":
                     command = [
                         "ffmpeg",
@@ -96,8 +217,6 @@ class VideoEncoderThread(QThread):
                         "-c:a", "copy",
                         output_file,
                     ]
-
-
                 if hwaccel == "Nvidia_Cuda_265":
                     command = [
                         "ffmpeg",
@@ -131,12 +250,10 @@ class VideoEncoderThread(QThread):
 
                 if self._is_canceled:
                     self.encoding_canceled.emit()
-                    self.encoding_complete.emit()
 
                 else:
                     self.encoding_completed.emit(i)  # Emit the signal with the row index
-                    self.encoding_complete.emit()
-                    self.encoding_progress_updated.emit(i, "Done")
+                   
 
     def shutdown(self):
         self._is_canceled = True
@@ -153,13 +270,7 @@ class VideoEncoderThread(QThread):
         # Process the FFmpeg command and capture the output
         startupinfo = STARTUPINFO()
         startupinfo.dwFlags |= STARTF_USESHOWWINDOW
-        process = subprocess.Popen(command, 
-                                stdout=subprocess.PIPE, 
-                                stderr=subprocess.STDOUT, 
-                                bufsize=1, 
-                                universal_newlines=True, 
-                                startupinfo=startupinfo)
-
+        process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, bufsize=1, universal_newlines=True, startupinfo=startupinfo)
 
         self.processes.append(process)
         self.start_times[row_index] = datetime.now()
@@ -199,7 +310,6 @@ class VideoEncoderThread(QThread):
 
         # Emit a signal indicating the task for row_index is completed
         self.encoding_completed.emit(row_index)
-
         
     def get_processed_frames(self, row):
         # Return the number of processed frames for the task at the specified row
@@ -208,42 +318,12 @@ class VideoEncoderThread(QThread):
 class VideoEncoder(QMainWindow):
     def __init__(self):
         super().__init__()
+        
+        self.is_dark_mode = True  # Start with dark mode enabled
+        self.setStyleSheet(DARK_STYLE)  
 
         self.setWindowTitle("Video Encoder")
         self.setGeometry(100, 100, 1000, 800)
-        self.setStyleSheet("""
-            QMainWindow {
-                background-color: #f0f0f0;
-            }
-            QTabWidget::pane {
-                border: none;
-            }
-            QTabBar {
-                background-color: #333;
-                color: white;
-                height: 30px;
-            }
-            QTabBar::tab:selected {
-                background-color: #555;
-            }
-            QTabBar::tab:!selected {
-                background-color: #444;
-            }
-            QPushButton {
-                background-color: #007BFF;
-                color: white;
-                border: none;
-                padding: 8px 15px;
-            }
-            QPushButton:hover {
-                background-color: #0056b3;
-            }
-            QLineEdit, QComboBox, QTableWidget, QPlainTextEdit {
-                background-color: white;
-                border: 1px solid #ccc;
-                padding: 5px;
-            }
-        """)
 
         self.init_ui()
 
@@ -282,15 +362,22 @@ class VideoEncoder(QMainWindow):
         if reply == QMessageBox.Yes:
             self.table_widget.removeRow(row)
 
-    def reset_ui(self):
-        # Clear the table
-        #self.table_widget.setRowCount(0)
+    def remove_all_rows(self):
+        # Confirm before removing all rows
+        reply = QMessageBox.question(self, 'Remove All Rows', 'Are you sure you want to remove all rows?', QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
+        if reply == QMessageBox.Yes:
+            self.table_widget.setRowCount(0)
 
-        # Reset other UI components as needed
-        # For example, reset input and output fields, disable the cancel button, etc.
-        # self.input_textbox.setText('')
-        # self.output_textbox.setText('')
-        
+    def toggle_theme(self):
+        if self.is_dark_mode:
+            self.setStyleSheet(LIGHT_STYLE)
+            self.is_dark_mode = False
+        else:
+            self.setStyleSheet(DARK_STYLE)
+            self.is_dark_mode = True
+
+    def reset_ui(self):
+       
         self.input_button.setEnabled(True)
         self.output_button.setEnabled(True)
         self.output_textbox.setEnabled(True)
@@ -300,14 +387,6 @@ class VideoEncoder(QMainWindow):
         self.Simultaneous_Encodes_combobox.setEnabled(True)
         self.encode_button.setEnabled(True)
         self.cancel_button.setEnabled(False)
-        # Add any additional reset logic here
-
-
-    def remove_all_rows(self):
-        # Confirm before removing all rows
-        reply = QMessageBox.question(self, 'Remove All Rows', 'Are you sure you want to remove all rows?', QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
-        if reply == QMessageBox.Yes:
-            self.table_widget.setRowCount(0)
 
     def init_ui(self):
 
@@ -333,12 +412,18 @@ class VideoEncoder(QMainWindow):
         self.file_menu = self.menubar.addMenu("File")
         self.help_menu = self.menubar.addMenu("Help")
         # Create actions for the menu items as instance variables
+        self.theme_action = QAction("Toggle Dark/Light Mode", self)
+        self.theme_action.triggered.connect(self.toggle_theme)
+        self.file_menu.addAction(self.theme_action)
         self.open_action = QAction("Open", self)
         self.open_action.triggered.connect(self.select_input_files)
         self.file_menu.addAction(self.open_action)
         self.exit_action = QAction("Exit", self)
         self.exit_action.triggered.connect(self.close)
         self.file_menu.addAction(self.exit_action)
+        self.about_action = QAction("About", self)
+        self.about_action.triggered.connect(self.show_about_dialog)
+        self.help_menu.addAction(self.about_action)
 
     def init_tab1_ui(self):
         layout = QVBoxLayout(self.tab1)
@@ -349,7 +434,7 @@ class VideoEncoder(QMainWindow):
         self.input_button = QPushButton("Select Files", self.tab1)
         form_layout.addRow("Files:", self.input_button)
         self.table_widget = QTableWidget(self.tab1)
-        self.table_widget.setColumnCount(6)  
+        self.table_widget.setColumnCount(5)  
         self.table_widget.setHorizontalHeaderLabels(["Input File", "Elapsed Time", "FPS", "Time Remaining", "Status"])
         output_group = QGroupBox("Output", self.tab1)
         form_layout = QFormLayout(output_group)
@@ -421,10 +506,57 @@ class VideoEncoder(QMainWindow):
         self.line_edit_tab2.setSizePolicy(size_policy)
         layout.addWidget(self.line_edit_tab2)
 
-
     @QtCore.pyqtSlot(str)
     def update_console_output(self, line):
         self.line_edit_tab2.appendPlainText(line)  # Use appendPlainText to add new lines
+
+    def show_about_dialog(self):
+        about_text = (
+            "Simple Video Encoder/Converter for Nvidia GPUs\n"
+
+            "Tested on Nvidia 3060, 3070, 4090\n\n"
+
+            "Note: This application is a work in progress, and not all functions work correctly.\n\n"
+
+            "Version: 3.0\n\n"
+
+            "Key Features:\n"
+
+            "GUI Interface for easy interaction\n"
+
+            "Hardware Acceleration for faster encoding (Cuvid, Cuda)\n"
+
+            "Concurrent Video Encoding for improved efficiency\n"
+
+            "Live Encoding Progress display with Elapsed Time, FPS, and Time Remaining\n"
+
+            "Customizable encoding settings (bitrate, preset, h264, hevc 265)\n\n"
+
+            "Only outputs to .mp4\n"
+
+            "ffmpeg commands are:\n\n"
+
+            "Nvidia Cuda\n"
+            "ffmpeg -y -hwaccel cuda -i input_video -c:v h264_nvenc -preset \"fast\" -b:v bitrate -c:a copy output_video\n"
+
+            "Nvidia cuvid\n"
+            "ffmpeg -y -hwaccel cuvid -i input_video -c:v h264_nvenc -preset \"fast\" -b:v bitrate -c:a copy output_video\n"
+
+            "Nvidia Cuda\n"
+            "ffmpeg -y -hwaccel cuda -i input_video -c:v hevc_nvenc -preset \"fast\" -b:v bitrate -c:a copy output_video\n"
+
+            "Nvidia cuvid\n"
+            "ffmpeg -y -hwaccel cuvid -i input_video -c:v hevc_nvenc -preset \"fast\" -b:v bitrate -c:a copy output_video\n"
+        )
+
+        # Create a QMessageBox and set the style sheet to customize the font color
+        about_box = QMessageBox(self)
+        about_box.setWindowTitle("About Bulk Video Encoder")
+        about_box.setText(about_text)
+
+        # Show the "About" dialog
+        about_box.exec_()
+
 
     def select_input_files(self):
         file_names, _ = QFileDialog.getOpenFileNames(self, "Select Files", self.input_folder, "Video Files (*.mp4;*.mkv;*.avi;*.mov;*.wmv;*.flv;*.webm;*.mpeg;*.mpg;*.m4v;*.ts)")
@@ -444,6 +576,15 @@ class VideoEncoder(QMainWindow):
                 self.table_widget.setItem(i, 2, fps_item)
 
             self.table_widget.resizeColumnsToContents()
+            # Calculate the total width needed for all columns
+            total_width = self.table_widget.verticalHeader().width()
+            total_width += self.table_widget.horizontalScrollBar().height()
+            for i in range(self.table_widget.columnCount()):
+                total_width += self.table_widget.columnWidth(i)
+                total_width+= 7
+
+            # Update the main window's size
+            self.setGeometry(100, 100, total_width, self.height())
 
     def select_output_folder(self):
         folder_name = QFileDialog.getExistingDirectory(self, "Select Folder", self.output_folder)
@@ -559,6 +700,8 @@ class VideoEncoder(QMainWindow):
             # Format and set the remaining time
             hours, minutes, seconds = int(remaining_time // 3600), int((remaining_time % 3600) // 60), int(remaining_time % 60)
             time_item.setText(f"{hours:02d}:{minutes:02d}:{seconds:02d}")
+        self.table_widget.resizeColumnsToContents()
+
 
     def get_total_frames(self, row):
         # Get the total number of frames in the video using FFprobe
@@ -593,8 +736,6 @@ class VideoEncoder(QMainWindow):
         # Update column 5 for the corresponding row to "Done" when an encoding is completed
         self.table_widget.setItem(row, 4, QTableWidgetItem("Done"))
         self.encoding_thread.finished_encoding[row] = True
-        
-
 
     @QtCore.pyqtSlot()
     def encoding_canceled_handler(self):
@@ -616,7 +757,6 @@ class VideoEncoder(QMainWindow):
         self.encode_button.setEnabled(True)
         self.cancel_button.setEnabled(False)
         self.reset_ui()
-        
         
         # Cleanup the encoding thread
         if hasattr(self, "encoding_thread") and self.encoding_thread.isRunning():
