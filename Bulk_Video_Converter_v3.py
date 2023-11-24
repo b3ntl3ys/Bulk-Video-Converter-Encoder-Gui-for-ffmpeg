@@ -502,12 +502,19 @@ class VideoEncoder(QMainWindow):
         # Read previous settings using QSettings
         self.settings = QSettings("MyCompany", "VideoEncoder")
         previous_bitrate = self.settings.value("bitrate", "1M")
+        previous_bitrate_mode = self.settings.value("bitrate_mode", "CBR")
+        previous_min_bitrate = self.settings.value("min_bitrate", "1M")
+        previous_max_bitrate = self.settings.value("max_bitrate", "2M")
         previous_preset = self.settings.value("preset", "medium")
         previous_simultaneous_encodes = self.settings.value("simultaneous_encodes", "1")
         previous_hwaccel_index = int(self.settings.value("hwaccel_index", "0"))
         previous_output_folder = self.settings.value("output_folder", "")
         # Create and set default values for comboboxes
         self.bitrate_combobox.setCurrentText(previous_bitrate)
+        self.bitrate_mode_combobox.setCurrentText(previous_bitrate_mode)
+        self.min_bitrate_combobox.setCurrentText(previous_min_bitrate)
+        self.max_bitrate_combobox.setCurrentText(previous_max_bitrate)
+
         self.preset_combobox.setCurrentText(previous_preset)
         self.Simultaneous_Encodes_combobox.setCurrentText(previous_simultaneous_encodes)
         self.hwaccel_combobox.setCurrentIndex(previous_hwaccel_index)
@@ -566,16 +573,16 @@ class VideoEncoder(QMainWindow):
             "ffmpeg commands are:\n\n"
 
             "Nvidia Cuda\n"
-            "ffmpeg -y -hwaccel cuda -i input_video -c:v h264_nvenc -preset \"fast\" -b:v bitrate -c:a copy output_video\n"
+            "ffmpeg -y -hwaccel cuda -i input_video -c:v h264_nvenc -preset fast -b:v bitrate -c:a copy output_video\n"
 
             "Nvidia cuvid\n"
-            "ffmpeg -y -hwaccel cuvid -i input_video -c:v h264_nvenc -preset \"fast\" -b:v bitrate -c:a copy output_video\n"
+            "ffmpeg -y -hwaccel cuvid -i input_video -c:v h264_nvenc -preset fast -b:v bitrate -c:a copy output_video\n"
 
             "Nvidia Cuda\n"
-            "ffmpeg -y -hwaccel cuda -i input_video -c:v hevc_nvenc -preset \"fast\" -b:v bitrate -c:a copy output_video\n"
+            "ffmpeg -y -hwaccel cuda -i input_video -c:v hevc_nvenc -preset fast -b:v bitrate -c:a copy output_video\n"
 
             "Nvidia cuvid\n"
-            "ffmpeg -y -hwaccel cuvid -i input_video -c:v hevc_nvenc -preset \"fast\" -b:v bitrate -c:a copy output_video\n"
+            "ffmpeg -y -hwaccel cuvid -i input_video -c:v hevc_nvenc -preset fast -b:v bitrate -c:a copy output_video\n"
         )
 
         # Create a QMessageBox and set the style sheet to customize the font color
@@ -620,7 +627,7 @@ class VideoEncoder(QMainWindow):
             total_width += self.table_widget.horizontalScrollBar().height()
             for i in range(self.table_widget.columnCount()):
                 total_width += self.table_widget.columnWidth(i)
-                total_width+= 7
+                total_width+= 10
 
             # Update the main window's size
             self.setGeometry(100, 100, total_width, self.height())
@@ -632,7 +639,7 @@ class VideoEncoder(QMainWindow):
             self.output_folder = folder_name
             self.settings.setValue("output_folder", self.output_folder)
 
-    def encode_videos(self):
+    def encode_videos(self,row):
         self.frame_count = 0
         input_files = []
         self.elapsed_time = 0
@@ -642,10 +649,17 @@ class VideoEncoder(QMainWindow):
         #self.status_label.setText("Encoding")
         # Store current settings in QSettings
         self.settings.setValue("bitrate", self.bitrate_combobox.currentText())
+        self.settings.setValue("bitrate_mode", self.bitrate_mode_combobox.currentText())
+        self.settings.setValue("min_bitrate", self.min_bitrate_combobox.currentText())
+        self.settings.setValue("max_bitrate", self.max_bitrate_combobox.currentText())
+
         self.settings.setValue("preset", self.preset_combobox.currentText())
         self.settings.setValue("simultaneous_encodes", self.Simultaneous_Encodes_combobox.currentText())
         self.settings.setValue("hwaccel_index", self.hwaccel_combobox.currentIndex())
         self.settings.setValue("output_folder", self.output_textbox.text())
+
+        self.table_widget.setItem(row, 4, QTableWidgetItem(""))
+
 
         for row in range(self.table_widget.rowCount()):
             input_files.append(self.table_widget.item(row, 0).text())
