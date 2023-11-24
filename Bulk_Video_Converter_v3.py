@@ -30,7 +30,7 @@ LIGHT_STYLE = ("""
         background-color: #444;
     }
     QPushButton {
-        border-radius: 15px; /* Rounded corners */
+        border-radius: 15px;
         background-color: #007BFF;
         color: white;
         border: none;
@@ -45,8 +45,8 @@ LIGHT_STYLE = ("""
         padding: 5px;
     }
     QMessageBox {
-        background-color: #f0f0f0; /* Light background */
-        color: #000000; /* Black text */
+        background-color: #f0f0f0;
+        color: #000000;
     }
     QMessageBox QPushButton {
         background-color: #e0e0e0;
@@ -54,79 +54,60 @@ LIGHT_STYLE = ("""
         border: 1px solid #cccccc;
     }
     QComboBox {
-    border-radius: 10px; /* Rounded corners */
-    }
-
-    QComboBox::drop-down {
-        border-radius: 10px; /* Rounded corners for the drop-down button */
-    }
-
-    QComboBox QAbstractItemView {
-        border-radius: 10px; /* Rounded corners for the list */
+        border-radius: 10px;
     }
 """)
 
 DARK_STYLE = ("""
     QMainWindow {
-        background-color: #212121; /* Darker shade for main window */
+        background-color: #212121;
     }
     QTabWidget::pane {
         border: none;
     }
     QTabBar {
-        background-color: #121212; /* Very dark shade for tabs */
+        background-color: #121212;
         color: #ffffff;
     }
     QTabBar::tab:selected {
-        background-color: #424242; /* Slightly lighter for selected tab */
+        background-color: #424242;
     }
     QTabBar::tab:!selected {
-        background-color: #1c1c1c; /* Dark shade for unselected tabs */
+        background-color: #1c1c1c;
     }
     QPushButton {
-        border-radius: 15px; /* Rounded corners */
-        background-color: #0056b3; /* Darker blue for buttons */
+        border-radius: 15px;
+        background-color: #0056b3;
         color: white;
         border: none;
         padding: 8px 15px;
     }
     QPushButton:hover {
-        background-color: #474747; /* Lighter grey on hover */
+        background-color: #474747;
     }
-   QLineEdit, QComboBox, QPlainTextEdit {
-        background-color: #1e1e1e; /* Dark background for inputs */
-        color: #ffffff; /* Explicitly set text color to white */
-        border: 1px solid #333333; /* Dark border for inputs */
+    QLineEdit, QComboBox, QPlainTextEdit {
+        background-color: #1e1e1e;
+        color: #ffffff;
+        border: 1px solid #333333;
     }
-
     QComboBox {
-    border-radius: 10px; /* Rounded corners */
-    padding: 6px 12px; /* Padding */
-    }
-
-    QComboBox::drop-down {
-        border-radius: 10px; /* Rounded corners for the drop-down button */
-    }
-
-    QComboBox QAbstractItemView {
-        border-radius: 10px; /* Rounded corners for the list */
-        background: white; /* Background color for the list */
+        border-radius: 10px;
+        padding: 6px 12px;
     }
     QTableWidget {
-        background-color: #1e1e1e; /* Dark background for table */
-        color: #ffffff; /* Text color for table */
+        background-color: #1e1e1e;
+        color: #ffffff;
     }
-
     QTableWidget QHeaderView::section {
-        background-color: #333333; /* Dark background for header */
-        color: #ffffff; /* Text color for header */
+        background-color: #333333;
+        color: #ffffff;
     }
     QLabel ,QGroupBox{
-        color: #ffffff; /* Set text color to white for QLabel */
+        color: #ffffff;
     }
     QMessageBox {
-        background-color: #212121; /* Dark background */
-        color: #ffffff; /* White text */
+        background-color: #212121;
+        color: #ffffff;
     }
     QMessageBox QPushButton {
         background-color: #333333;
@@ -135,7 +116,7 @@ DARK_STYLE = ("""
     }
 """)
 
-bitrate_num = "1M", "2M", "3M","4M", "5M","6M", "10M", "12M", "14M","20M", "30M", "40M", "50M"
+bitrate_num = "1M","2M","3M","4M","5M","6M","8M","10M","12M","14M","20M","30M","40M","50M"
 sel_preset = "slow", "medium", "fast"
 num_encodes = "1", "2", "3","4","5"
 
@@ -162,22 +143,24 @@ class VideoEncoderThread(QThread):
     encoding_completed = QtCore.pyqtSignal(int)
     console_output_updated = QtCore.pyqtSignal(str)  # New signal for console output
 
-    def __init__(self, input_files, output_folder, preset, bitrate, simultaneous_encodes, hwaccel_index):
+    def __init__(self, input_files, output_folder, preset, bitrate, simultaneous_encodes, hwaccel_index, bitrate_mode_combobox,min_bitrate,max_bitrate):
         super().__init__()
         self.input_files = input_files
         self.output_folder = output_folder
         self.preset = preset
         self.bitrate = bitrate
         self.simultaneous_encodes = simultaneous_encodes
+        self.bitrate_mode_combobox = bitrate_mode_combobox  # Store the bitrate_mode_combobox as an instance variable
+        self.min_bitrate_combobox = min_bitrate
+        self.max_bitrate_combobox = max_bitrate
         self.processes = []
         self.elapsed_times = [0] * len(input_files)
         self.start_times = [num_encodes] * len(input_files)
         self._is_canceled = False
-        self.hwaccel_index = hwaccel_index  # Store the hwaccel_index as an instance variable
-        # Add a list to keep track of videos that have started encoding
+        self.hwaccel_index = hwaccel_index
         self.started_encoding = [False] * len(input_files)
         self.finished_encoding = [False] * len(input_files)
-        self.processed_frames = [0] * len(input_files)  # Initialize the list
+        self.processed_frames = [0] * len(input_files)
 
     def run(self):
         with ThreadPoolExecutor(max_workers=self.simultaneous_encodes) as executor:
@@ -201,10 +184,15 @@ class VideoEncoderThread(QThread):
                         "-i", input_file,
                         "-c:v", "hevc_nvenc",
                         "-preset", self.preset,
-                        "-b:v", self.bitrate,
-                        "-c:a", "copy",
-                        output_file,
                     ]
+                    
+                    if self.bitrate_mode_combobox.currentText() == "CBR":
+                        command += ["-b:v", self.bitrate]
+                    elif self.bitrate_mode_combobox.currentText() == "VBR":
+                        command += ["-minrate", self.min_bitrate_combobox.currentText(), "-maxrate", self.max_bitrate_combobox.currentText(), "-bufsize", "50M"]
+                    
+                    command += ["-c:a", "copy", output_file]
+
                 if hwaccel  == "Nvidia_Cuvid_h264":
                     command = [
                         "ffmpeg",
@@ -213,10 +201,15 @@ class VideoEncoderThread(QThread):
                         "-i", input_file,
                         "-c:v", "h264_nvenc",
                         "-preset", self.preset,
-                        "-b:v", self.bitrate,
-                        "-c:a", "copy",
-                        output_file,
-                    ]
+                        ]
+                    
+                    if self.bitrate_mode_combobox.currentText() == "CBR":
+                        command += ["-b:v", self.bitrate]
+                    elif self.bitrate_mode_combobox.currentText() == "VBR":
+                        command += ["-minrate", self.min_bitrate_combobox.currentText(), "-maxrate", self.max_bitrate_combobox.currentText(), "-bufsize", "50M"]
+      
+                    
+                    command += ["-c:a", "copy", output_file]
                 if hwaccel == "Nvidia_Cuda_265":
                     command = [
                         "ffmpeg",
@@ -225,10 +218,15 @@ class VideoEncoderThread(QThread):
                         "-i", input_file,
                         "-c:v", "hevc_nvenc",
                         "-preset", self.preset,
-                        "-b:v", self.bitrate,
-                        "-c:a", "copy",
-                        output_file,
-                    ]
+                        ]
+                    
+                    if self.bitrate_mode_combobox.currentText() == "CBR":
+                        command += ["-b:v", self.bitrate]
+                    elif self.bitrate_mode_combobox.currentText() == "VBR":
+                        command += ["-minrate", self.min_bitrate_combobox.currentText(), "-maxrate", self.max_bitrate_combobox.currentText(), "-bufsize", "50M"]
+                   
+                    
+                    command += ["-c:a", "copy", output_file]
                 if hwaccel == "Nvidia_Cuda_h264":
                     command = [
                         "ffmpeg",
@@ -237,10 +235,16 @@ class VideoEncoderThread(QThread):
                         "-i", input_file,
                         "-c:v", "h264_nvenc",
                         "-preset", self.preset,
-                        "-b:v", self.bitrate,
-                        "-c:a", "copy",
-                        output_file,
-                    ]
+                        ]
+                    
+                    if self.bitrate_mode_combobox.currentText() == "CBR":
+                        command += ["-b:v", self.bitrate]
+                    elif self.bitrate_mode_combobox.currentText() == "VBR":
+                        command += ["-minrate", self.min_bitrate_combobox.currentText(), "-maxrate", self.max_bitrate_combobox.currentText(), "-bufsize", "50M"]
+                    
+                    command += ["-c:a", "copy", output_file]
+
+                print(command)
 
                 future = executor.submit(self.execute_ffmpeg, command, i)
                 futures.append(future)
@@ -253,6 +257,7 @@ class VideoEncoderThread(QThread):
 
                 else:
                     self.encoding_completed.emit(i)  # Emit the signal with the row index
+                    
                    
 
     def shutdown(self):
@@ -386,7 +391,7 @@ class VideoEncoder(QMainWindow):
         self.hwaccel_combobox.setEnabled(True)
         self.Simultaneous_Encodes_combobox.setEnabled(True)
         self.encode_button.setEnabled(True)
-        self.cancel_button.setEnabled(False)
+        self.cancel_button.setEnabled(True)
 
     def init_ui(self):
 
@@ -451,12 +456,12 @@ class VideoEncoder(QMainWindow):
         self.hwaccel_combobox.addItems(["Nvidia_Cuda_h264", "Nvidia_Cuvid_h264","Nvidia_cuda_265","Nvidia_Cuvid_265"])
         grid_layout.addWidget(QLabel("Simultaneous Encodes:"), 0, 0)
         grid_layout.addWidget(self.Simultaneous_Encodes_combobox, 0, 1)
-        grid_layout.addWidget(QLabel("Bitrate:"), 0, 2)
-        grid_layout.addWidget(self.bitrate_combobox, 0, 3)
+        grid_layout.addWidget(QLabel("Bitrate:"), 1, 2)
+        grid_layout.addWidget(self.bitrate_combobox, 1 ,3)
         grid_layout.addWidget(QLabel("Preset:"), 1, 0)
         grid_layout.addWidget(self.preset_combobox, 1, 1)
-        grid_layout.addWidget(QLabel("Hardware Acceleration:"), 1, 2)
-        grid_layout.addWidget(self.hwaccel_combobox, 1, 3)
+        grid_layout.addWidget(QLabel("Hardware Acceleration:"), 4, 0)
+        grid_layout.addWidget(self.hwaccel_combobox, 4, 1)
         self.encode_button = QPushButton("Encode Videos", self.tab1)
         self.cancel_button = QPushButton("Cancel Encode", self.tab1)
         button_layout = QHBoxLayout()
@@ -468,7 +473,31 @@ class VideoEncoder(QMainWindow):
         layout.addWidget(settings_group)
         layout.addLayout(button_layout)
 
+        # New Bitrate Mode Combobox
+        self.bitrate_mode_combobox = QComboBox(self.tab1)
+        self.bitrate_mode_combobox.addItems(["CBR", "VBR"])
+        grid_layout.addWidget(QLabel("Bitrate Mode:"), 0, 2)
+        grid_layout.addWidget(self.bitrate_mode_combobox, 0, 3)
+        self.bitrate_mode_combobox.currentIndexChanged.connect(self.on_bitrate_mode_change)
+
+
+        # Min Bitrate Editable Combobox
+        self.min_bitrate_combobox = QComboBox(self.tab1)
+        self.min_bitrate_combobox.setEditable(True)
+        grid_layout.addWidget(QLabel("Min Bitrate (M):"), 3, 2)
+        grid_layout.addWidget(self.min_bitrate_combobox, 3, 3)
+
+        # Max Bitrate Editable Combobox
+        self.max_bitrate_combobox = QComboBox(self.tab1)
+        self.max_bitrate_combobox.setEditable(True)
+        grid_layout.addWidget(QLabel("Max Bitrate (M):"), 4, 2)
+        grid_layout.addWidget(self.max_bitrate_combobox, 4, 3)
+
         self.bitrate_combobox.addItems(bitrate_num)
+        self.min_bitrate_combobox.addItems(bitrate_num)
+        self.max_bitrate_combobox.addItems(bitrate_num)
+
+
         self.preset_combobox.addItems(sel_preset)
         self.Simultaneous_Encodes_combobox.addItems(num_encodes)
         # Read previous settings using QSettings
@@ -509,6 +538,7 @@ class VideoEncoder(QMainWindow):
     @QtCore.pyqtSlot(str)
     def update_console_output(self, line):
         self.line_edit_tab2.appendPlainText(line)  # Use appendPlainText to add new lines
+
 
     def show_about_dialog(self):
         about_text = (
@@ -556,6 +586,16 @@ class VideoEncoder(QMainWindow):
 
         # Show the "About" dialog
         about_box.exec_()
+
+    def on_bitrate_mode_change(self, index):
+        # Disable bitrate_combobox if "CBR" is selected
+        is_cbr_selected = self.bitrate_mode_combobox.currentText() == "CBR"
+        self.min_bitrate_combobox.setDisabled(is_cbr_selected)
+        self.max_bitrate_combobox.setDisabled(is_cbr_selected)
+
+        is_vbr_or_pvbr_selected = self.bitrate_mode_combobox.currentText() in ("VBR", "PVBR")
+        self.bitrate_combobox.setDisabled(is_vbr_or_pvbr_selected)
+
 
 
     def select_input_files(self):
@@ -615,6 +655,9 @@ class VideoEncoder(QMainWindow):
         preset = self.preset_combobox.currentText()
         bitrate = self.bitrate_combobox.currentText()
         self.simultaneous_encodes = int(self.Simultaneous_Encodes_combobox.currentText())
+        bitrate_mode_combobox = self.bitrate_mode_combobox
+        min_bitrate_combobox = self.min_bitrate_combobox.currentText()
+        max_bitrate_combobox = self.max_bitrate_combobox.currentText()
 
         self.input_button.setEnabled(False)
         self.output_button.setEnabled(False)
@@ -627,7 +670,7 @@ class VideoEncoder(QMainWindow):
         self.encode_button.setEnabled(False)
         self.fps_queue.clear()
         self.frame_count_queue.clear()
-        self.encoding_thread = VideoEncoderThread(input_files, output_folder, preset, bitrate, self.simultaneous_encodes, self.hwaccel_combobox.currentIndex())
+        self.encoding_thread = VideoEncoderThread(input_files, output_folder, preset, bitrate, self.simultaneous_encodes, self.hwaccel_combobox.currentIndex(),self.bitrate_mode_combobox,self.min_bitrate_combobox,self.max_bitrate_combobox)
         self.encoding_thread.fps_updated.connect(self.update_fps_for_row)  # Connect to update_fps_for_row
         self.encoding_thread.encoding_canceled.connect(self.encoding_canceled_handler)
         self.cancel_button.clicked.connect(self.cancel_encoding_thread)
@@ -736,6 +779,7 @@ class VideoEncoder(QMainWindow):
         # Update column 5 for the corresponding row to "Done" when an encoding is completed
         self.table_widget.setItem(row, 4, QTableWidgetItem("Done"))
         self.encoding_thread.finished_encoding[row] = True
+        self.reset_ui()
 
     @QtCore.pyqtSlot()
     def encoding_canceled_handler(self):
