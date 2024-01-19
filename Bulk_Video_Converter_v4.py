@@ -2,6 +2,8 @@ import sys
 import os
 import re
 import time
+import zipfile
+import urllib.request
 import subprocess
 from subprocess import STARTUPINFO, STARTF_USESHOWWINDOW
 from datetime import datetime
@@ -9,7 +11,7 @@ from PyQt5 import QtCore
 from PyQt5.QtCore import QThread
 from PyQt5.QtCore import QSettings
 from PyQt5.QtWidgets import QApplication, QMainWindow, QFileDialog, QLabel, QTableWidget, QPushButton, QComboBox, QTableWidgetItem, QLabel, \
-    QWidget, QGridLayout, QHBoxLayout, QVBoxLayout, QFormLayout, QLineEdit, QTabWidget,QSizePolicy,QPlainTextEdit,QGroupBox,QAction,QMessageBox,QMenu
+    QWidget, QGridLayout, QHBoxLayout, QVBoxLayout, QFormLayout, QLineEdit, QTabWidget,QSizePolicy,QPlainTextEdit,QGroupBox,QAction,QMessageBox,QMenu,QProgressDialog
 
 LIGHT_STYLE = ("""
     QMainWindow {
@@ -278,49 +280,63 @@ class VideoEncoderThread(QThread):
         self.shutdown()
 
     def execute_ffmpeg(self, command, row_index):
-        # Process the FFmpeg command and capture the output
         startupinfo = STARTUPINFO()
         startupinfo.dwFlags |= STARTF_USESHOWWINDOW
-        process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, bufsize=1, universal_newlines=True, startupinfo=startupinfo)
-        
-        self.processes.append(process)
-        self.start_times[row_index] = datetime.now()
+        try:
+            # Process the FFmpeg command and capture the output
+            process = subprocess.Popen(
+                command,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
+                bufsize=1,
+                universal_newlines=True,
+                startupinfo=startupinfo,
+                encoding='utf-8',  # Specify encoding directly
+                errors='replace',  # Handle decoding errors
+                text=True  # Use text mode
+            )
 
-        while True:
-            line = process.stdout.readline()
-            if not line:
-                break
+            self.processes.append(process)
+            self.start_times[row_index] = datetime.now()
+            while True:
+                line = process.stdout.readline()
+                if not line:
+                    break
 
-            if self._is_canceled:
-                break
+                if self._is_canceled:
+                    break
 
-            # Start the elapsed timer only when encoding has started for the video item
-            if not self.started_encoding[row_index]:
-                self.started_encoding[row_index] = True
-                self.start_times[row_index] = datetime.now()
+                # Start the elapsed timer only when encoding has started for the video item
+                if not self.started_encoding[row_index]:
+                    self.started_encoding[row_index] = True
+                    self.start_times[row_index] = datetime.now()
 
-            fps_match = re.search(r'(\d+\.?\d*)\sfps', line)
-            if fps_match:
-                fps = float(fps_match.group(1))
-                elapsed_time = (datetime.now() - self.start_times[row_index]).total_seconds()
-                if elapsed_time > 0:
-                    fps = fps / elapsed_time
-                self.fps_updated.emit(row_index, fps)
+                fps_match = re.search(r'(\d+\.?\d*)\sfps', line)
+                if fps_match:
+                    fps = float(fps_match.group(1))
+                    elapsed_time = (datetime.now() - self.start_times[row_index]).total_seconds()
+                    if elapsed_time > 0:
+                        fps = fps / elapsed_time
+                    self.fps_updated.emit(row_index, fps)
 
-            if self.started_encoding[row_index]:
-                self.elapsed_times[row_index] = int((datetime.now() - self.start_times[row_index]).total_seconds())
-            
-            # Emit the console output line directly to the main GUI
-            self.console_output_updated.emit(line.strip())  # Emitting the stripped output line
+                if self.started_encoding[row_index]:
+                    self.elapsed_times[row_index] = int((datetime.now() - self.start_times[row_index]).total_seconds())
 
-            frame_match = re.search(r'frame=\s*(\d+)', line)
-            if frame_match:
-                self.processed_frames[row_index] = int(frame_match.group(1))
+                # Emit the console output line directly to the main GUI
+                self.console_output_updated.emit(line.strip())  # Emitting the stripped output line
 
-        process.wait()
+                frame_match = re.search(r'frame=\s*(\d+)', line)
+                if frame_match:
+                    self.processed_frames[row_index] = int(frame_match.group(1))
 
-        # Emit a signal indicating the task for row_index is completed
-        self.encoding_completed.emit(row_index)
+            process.wait()
+
+            # Emit a signal indicating the task for row_index is completed
+            self.encoding_completed.emit(row_index)
+
+        except Exception as e:
+            # Handle exceptions (e.g., log the error)
+            print(f"An error occurred: {e}")
         
     def get_processed_frames(self, row):
         # Return the number of processed frames for the task at the specified row
@@ -337,6 +353,120 @@ class VideoEncoder(QMainWindow):
         self.setGeometry(100, 100, 1000, 800)
 
         self.init_ui()
+        self.check_and_install_ffmpeg()
+
+
+    def download_and_install_ffmpeg(self):
+        print("Downloading FFmpeg...")
+
+        # New download URL
+        download_url = "hhttps://www.gyan.dev/ffmpeg/builds/ffmpeg-release-essentials.zip"
+
+        # Rest of the code remains the same
+        download_path = os.path.join(os.getcwd(), "ffmpeg.zip")
+
+        # Create a progress dialog
+        progress_dialog = QProgressDialog("Downloading FFmpeg...", "Cancel", 0, 100)
+        progress_dialog.setWindowModality(QtCore.Qt.WindowModal)
+        progress_dialog.setWindowTitle("Download Progress")
+        progress_dialog.setAutoClose(True)
+
+        def reporthook(blocknum, blocksize, totalsize):
+            nonlocal progress_dialog
+
+            # Calculate the download progress
+            progress = min(int(blocknum * blocksize * 100 / totalsize), 100)
+
+            # Update the progress dialog
+            progress_dialog.setValue(progress)
+
+        urllib.request.urlretrieve(download_url, download_path, reporthook=reporthook)
+
+        # Close the progress dialog
+        progress_dialog.close()
+
+        print("Extracting FFmpeg...")
+
+        # Extract the downloaded zip file directly to C:\ffmpeg\bin
+        ffmpeg_bin_path = "C:\\ffmpeg\\bin"
+
+        with zipfile.ZipFile(download_path, 'r') as zip_ref:
+            for file_info in zip_ref.infolist():
+                try:
+                    file_info.filename = os.path.basename(file_info.filename)  # Get only the filename
+                    zip_ref.extract(file_info, ffmpeg_bin_path)
+                except Exception as e:
+                    #print(f"Error extracting file: {file_info.filename}")
+                    #print(f"Exception: {e}")
+                    continue
+
+
+        # Clean up: remove the downloaded zip file
+        os.remove(download_path)
+
+        # Add the FFmpeg bin directory to the system's PATH
+        self.add_to_path(ffmpeg_bin_path)
+
+        # Print a message
+        print("FFmpeg installed successfully.")
+
+
+    def check_and_install_ffmpeg(self): 
+        if not self.is_ffmpeg_installed():
+            message = (
+                "FFmpeg is not installed or not found in the system's PATH.\n\n"
+                "FFmpeg is required for this application to function properly. "
+                "Do you want to download and install it to 'C:\\ffmpeg\\bin'?"
+            )
+
+            reply = QMessageBox.question(self, 'FFmpeg Not Found', message,
+                                        QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
+
+            if reply == QMessageBox.Yes:
+                self.download_and_install_ffmpeg()
+                print("FFmpeg installed successfully.")
+            else:
+                print("User chose not to install FFmpeg.")
+                # Handle the case where the user chooses not to install FFmpeg
+
+    def is_ffmpeg_installed(self):
+        try:
+            # Use subprocess to run the command 'ffmpeg -version'
+            subprocess.run(['ffmpeg', '-version'], stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=True)
+            print("FFmpeg is already installed.")
+            return True
+        except FileNotFoundError:
+            print("FFmpeg is not installed.")
+            return False
+        
+    def add_to_path(self, program_path: str):
+        """Takes in a path to a program and adds it to the user-specific path"""
+        if os.name == "nt":  # Windows systems
+            import winreg  # Allows access to the windows registry
+            import ctypes  # Allows interface with low-level C API's
+
+            with winreg.ConnectRegistry(None, winreg.HKEY_CURRENT_USER) as root:  # Get the current user registry
+                with winreg.OpenKey(root, "Environment", 0, winreg.KEY_ALL_ACCESS) as key:  # Go to the environment key
+                    existing_path_value = winreg.QueryValueEx(key, "PATH")[0]  # Grab the current path value
+
+                    # Check if the path is already in the existing value
+                    if program_path not in existing_path_value:
+                        new_path_value = existing_path_value + ";" + program_path
+                        winreg.SetValueEx(key, "PATH", 0, winreg.REG_EXPAND_SZ, new_path_value)  # Update the path
+
+                # Tell other processes to update their environment
+                HWND_BROADCAST = 0xFFFF
+                WM_SETTINGCHANGE = 0x1A
+                SMTO_ABORTIFHUNG = 0x0002
+                result = ctypes.c_long()
+                SendMessageTimeoutW = ctypes.windll.user32.SendMessageTimeoutW
+                SendMessageTimeoutW(HWND_BROADCAST, WM_SETTINGCHANGE, 0, u"Environment", SMTO_ABORTIFHUNG, 5000, ctypes.byref(result), )
+        else:  # If the system is *nix
+            print("This method is intended for Windows systems. For *nix systems, consider modifying the PATH manually.")
+
+        print(f"Added {program_path} to user path, please restart the shell for changes to take effect")
+
+
 
     def contextMenuEvent(self, event):
         # Ensure the event is within the bounds of the QTableWidget
